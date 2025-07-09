@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,7 +40,9 @@ const Index = () => {
   useEffect(() => {
     const loadTotalCount = async () => {
       try {
+        console.log('Loading total questions count...');
         const count = await getTotalQuestionsCount();
+        console.log('Total questions count:', count);
         setTotalQuestionsInBank(count);
       } catch (error) {
         console.error('Error loading total questions count:', error);
@@ -64,9 +65,16 @@ const Index = () => {
   }, [isTimerActive, timeLeft]);
 
   const startPracticeQuiz = async () => {
+    console.log('Starting practice quiz...');
     setIsLoading(true);
     try {
       const questions = await getRandomQuestions(PRACTICE_QUIZ_SIZE);
+      console.log('Loaded questions for practice:', questions);
+      
+      if (questions.length === 0) {
+        throw new Error('No questions were loaded');
+      }
+      
       setCurrentQuestions(questions);
       setSelectedAnswers(new Array(questions.length).fill(null));
       setCurrentQuestionIndex(0);
@@ -78,6 +86,7 @@ const Index = () => {
         description: `${questions.length} שאלות, 45 דקות`,
       });
     } catch (error) {
+      console.error('Error starting practice quiz:', error);
       toast({
         title: "שגיאה",
         description: "לא ניתן לטעון את השאלות. נסה שוב.",
@@ -89,9 +98,16 @@ const Index = () => {
   };
 
   const startFullReview = async () => {
+    console.log('Starting full review...');
     setIsLoading(true);
     try {
       const questions = await getAllQuestions();
+      console.log('Loaded questions for review:', questions);
+      
+      if (questions.length === 0) {
+        throw new Error('No questions were loaded');
+      }
+      
       setCurrentQuestions(questions);
       setSelectedAnswers(new Array(questions.length).fill(null));
       setCurrentQuestionIndex(0);
@@ -102,6 +118,7 @@ const Index = () => {
         description: `${questions.length} שאלות זמינות לסקירה`,
       });
     } catch (error) {
+      console.error('Error starting full review:', error);
       toast({
         title: "שגיאה",
         description: "לא ניתן לטעון את השאלות. נסה שוב.",
@@ -280,6 +297,21 @@ const Index = () => {
           <Loader2 className="mx-auto h-12 w-12 animate-spin text-blue-600 mb-4" />
           <p className="text-lg font-medium text-gray-700">טוען שאלות מהמאגר הרשמי...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Safety check - if no questions loaded
+  if (currentQuestions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8 text-center">
+            <h2 className="text-xl font-bold text-red-600 mb-4">שגיאה בטעינת השאלות</h2>
+            <p className="text-gray-600 mb-4">לא ניתן לטעון שאלות מהמאגר. אנא נסה שוב.</p>
+            <Button onClick={() => window.location.reload()}>רענן דף</Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

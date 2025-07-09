@@ -8,17 +8,12 @@ export interface Question {
   category?: string;
 }
 
-// Response from data.gov.il API
+// Response from data.gov.il API - המבנה האמיתי
 interface ApiQuestion {
   _id: number;
-  שאלה: string;
-  תשובה_1: string;
-  תשובה_2: string;
-  תשובה_3: string;
-  תשובה_4?: string;
-  תשובה_נכונה: number;
-  תמונה?: string;
-  קטגוריה?: string;
+  title2: string; // השאלה נמצאת בשדה title2
+  description4: string; // התשובות והתמונה נמצאים ב-HTML ב-description4
+  category: string;
 }
 
 interface ApiResponse {
@@ -32,9 +27,43 @@ interface ApiResponse {
 let questionCache: Question[] = [];
 let totalQuestionsCount = 0;
 
+// Function to parse HTML and extract answers and correct answer
+const parseQuestionData = (description4: string): { options: string[], correctAnswer: number, image?: string } => {
+  console.log('Parsing description4:', description4);
+  
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(description4, 'text/html');
+  
+  // Extract options from li elements
+  const liElements = doc.querySelectorAll('li span');
+  const options: string[] = [];
+  let correctAnswer = 0;
+  
+  liElements.forEach((span, index) => {
+    const text = span.textContent?.trim() || '';
+    if (text) {
+      options.push(text);
+      // Check if this is the correct answer (has id attribute starting with 'correctAnswer')
+      if (span.id && span.id.startsWith('correctAnswer')) {
+        correctAnswer = index;
+      }
+    }
+  });
+  
+  // Extract image if exists
+  const imgElement = doc.querySelector('img');
+  const image = imgElement?.src || undefined;
+  
+  console.log('Parsed options:', options, 'Correct answer:', correctAnswer, 'Image:', image);
+  
+  return { options, correctAnswer, image };
+};
+
 // Function to fetch questions from data.gov.il API
 export const fetchQuestions = async (limit: number = 100, offset: number = 0): Promise<Question[]> => {
   try {
+    console.log('Fetching questions with limit:', limit, 'offset:', offset);
+    
     const response = await fetch(`https://data.gov.il/api/3/action/datastore_search?resource_id=8c0f314f-583d-48b6-9f5f-4483d95f6848&limit=${limit}&offset=${offset}`);
     
     if (!response.ok) {
@@ -42,26 +71,26 @@ export const fetchQuestions = async (limit: number = 100, offset: number = 0): P
     }
     
     const data: ApiResponse = await response.json();
+    console.log('API Response:', data);
+    
     totalQuestionsCount = data.result.total;
     
     const questions: Question[] = data.result.records.map(record => {
-      const options = [
-        record.תשובה_1,
-        record.תשובה_2,
-        record.תשובה_3,
-        record.תשובה_4
-      ].filter(Boolean); // Remove undefined options
+      console.log('Processing record:', record);
+      
+      const { options, correctAnswer, image } = parseQuestionData(record.description4);
       
       return {
         id: record._id,
-        question: record.שאלה,
+        question: record.title2,
         options,
-        correctAnswer: record.תשובה_נכונה - 1, // Convert from 1-based to 0-based
-        image: record.תמונה,
-        category: record.קטגוריה
+        correctAnswer,
+        image,
+        category: record.category
       };
-    });
+    }).filter(q => q.options.length > 0); // Filter out questions without valid options
     
+    console.log('Processed questions:', questions);
     return questions;
   } catch (error) {
     console.error('Error fetching questions:', error);
@@ -81,6 +110,8 @@ export const getAllQuestions = async (): Promise<Question[]> => {
 // Function to get random questions for a quiz
 export const getRandomQuestions = async (count: number): Promise<Question[]> => {
   const allQuestions = await getAllQuestions();
+  console.log('All questions loaded:', allQuestions.length);
+  
   const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
   return shuffled.slice(0, Math.min(count, allQuestions.length));
 };
