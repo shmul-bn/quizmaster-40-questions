@@ -68,11 +68,19 @@ const QuizCard: React.FC<QuizCardProps> = ({
           {question.options.map((option, index) => {
             let buttonClass = "w-full p-4 text-right transition-all duration-200 hover:scale-105";
             
-            if (showResult) {
+            if (showResult && selectedAnswer !== null) {
+              // Only show results if an answer was selected
               if (index === question.correctAnswer) {
                 buttonClass += " bg-green-100 border-green-500 text-green-800 hover:bg-green-100";
               } else if (index === selectedAnswer && !isCorrect) {
                 buttonClass += " bg-red-100 border-red-500 text-red-800 hover:bg-red-100";
+              } else {
+                buttonClass += " bg-gray-100 border-gray-300 text-gray-600";
+              }
+            } else if (showResult && selectedAnswer === null) {
+              // In review mode but no answer selected - highlight correct answer only
+              if (index === question.correctAnswer) {
+                buttonClass += " bg-green-100 border-green-500 text-green-800 hover:bg-green-100";
               } else {
                 buttonClass += " bg-gray-100 border-gray-300 text-gray-600";
               }
@@ -89,8 +97,8 @@ const QuizCard: React.FC<QuizCardProps> = ({
                 key={index}
                 variant="outline"
                 className={buttonClass}
-                onClick={() => !showResult && onAnswerSelect(index)}
-                disabled={showResult}
+                onClick={() => showResult ? onAnswerSelect(index) : onAnswerSelect(index)}
+                disabled={false}
               >
                 <div className="flex items-center justify-between w-full">
                   <span className="font-medium">
@@ -106,14 +114,27 @@ const QuizCard: React.FC<QuizCardProps> = ({
         </div>
         
         {showResult && (
-          <div className={`mt-6 p-4 rounded-lg ${isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-            <p className={`font-medium text-right ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>
-              {isCorrect ? '✅ תשובה נכונה!' : '❌ תשובה שגויה'}
-            </p>
-            {!isCorrect && (
-              <p className="text-sm text-gray-600 mt-2 text-right">
-                התשובה הנכונה היא: <strong>{String.fromCharCode(65 + question.correctAnswer)}. {question.options[question.correctAnswer]}</strong>
-              </p>
+          <div className="mt-6">
+            {selectedAnswer !== null ? (
+              <div className={`p-4 rounded-lg ${isCorrect ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                <p className={`font-medium text-right ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>
+                  {isCorrect ? '✅ תשובה נכונה!' : '❌ תשובה שגויה'}
+                </p>
+                {!isCorrect && (
+                  <p className="text-sm text-gray-600 mt-2 text-right">
+                    התשובה הנכונה היא: <strong>{String.fromCharCode(65 + question.correctAnswer)}. {question.options[question.correctAnswer]}</strong>
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                <p className="font-medium text-right text-blue-800">
+                  💡 התשובה הנכונה היא: <strong>{String.fromCharCode(65 + question.correctAnswer)}. {question.options[question.correctAnswer]}</strong>
+                </p>
+                <p className="text-sm text-blue-600 mt-2 text-right">
+                  בחר תשובה כדי לראות אם אתה צודק
+                </p>
+              </div>
             )}
           </div>
         )}
