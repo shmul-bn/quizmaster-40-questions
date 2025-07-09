@@ -6,14 +6,15 @@ import { Progress } from '@/components/ui/progress';
 import QuizCard from '@/components/QuizCard';
 import ResultsModal from '@/components/ResultsModal';
 import { 
-  questionBank, 
   getRandomQuestions, 
+  getAllQuestions,
+  getTotalQuestionsCount,
   Question, 
-  TOTAL_QUESTIONS_IN_BANK, 
   PRACTICE_QUIZ_SIZE,
   PASSING_SCORE 
 } from '@/data/questionBank';
 import { toast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 interface QuizResult {
   questionIndex: number;
@@ -33,6 +34,21 @@ const Index = () => {
   const [quizResults, setQuizResults] = useState<QuizResult[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [totalQuestionsInBank, setTotalQuestionsInBank] = useState(1800);
+
+  // Load total questions count on mount
+  useEffect(() => {
+    const loadTotalCount = async () => {
+      try {
+        const count = await getTotalQuestionsCount();
+        setTotalQuestionsInBank(count);
+      } catch (error) {
+        console.error('Error loading total questions count:', error);
+      }
+    };
+    loadTotalCount();
+  }, []);
 
   // Timer effect
   useEffect(() => {
@@ -47,31 +63,53 @@ const Index = () => {
     return () => clearInterval(interval);
   }, [isTimerActive, timeLeft]);
 
-  const startPracticeQuiz = () => {
-    const questions = getRandomQuestions(PRACTICE_QUIZ_SIZE);
-    setCurrentQuestions(questions);
-    setSelectedAnswers(new Array(questions.length).fill(null));
-    setCurrentQuestionIndex(0);
-    setQuizMode('practice');
-    setTimeLeft(45 * 60); // 45 minutes
-    setIsTimerActive(true);
-    toast({
-      title: "מבחן התחיל!",
-      description: `${questions.length} שאלות, ${Math.floor(timeLeft / 60)} דקות`,
-    });
+  const startPracticeQuiz = async () => {
+    setIsLoading(true);
+    try {
+      const questions = await getRandomQuestions(PRACTICE_QUIZ_SIZE);
+      setCurrentQuestions(questions);
+      setSelectedAnswers(new Array(questions.length).fill(null));
+      setCurrentQuestionIndex(0);
+      setQuizMode('practice');
+      setTimeLeft(45 * 60); // 45 minutes
+      setIsTimerActive(true);
+      toast({
+        title: "מבחן התחיל!",
+        description: `${questions.length} שאלות, 45 דקות`,
+      });
+    } catch (error) {
+      toast({
+        title: "שגיאה",
+        description: "לא ניתן לטעון את השאלות. נסה שוב.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const startFullReview = () => {
-    // For demo purposes, use all available questions
-    setCurrentQuestions(questionBank);
-    setSelectedAnswers(new Array(questionBank.length).fill(null));
-    setCurrentQuestionIndex(0);
-    setQuizMode('review');
-    setIsTimerActive(false);
-    toast({
-      title: "מצב סקירה",
-      description: `${questionBank.length} שאלות זמינות לסקירה`,
-    });
+  const startFullReview = async () => {
+    setIsLoading(true);
+    try {
+      const questions = await getAllQuestions();
+      setCurrentQuestions(questions);
+      setSelectedAnswers(new Array(questions.length).fill(null));
+      setCurrentQuestionIndex(0);
+      setQuizMode('review');
+      setIsTimerActive(false);
+      toast({
+        title: "מצב סקירה",
+        description: `${questions.length} שאלות זמינות לסקירה`,
+      });
+    } catch (error) {
+      toast({
+        title: "שגיאה",
+        description: "לא ניתן לטעון את השאלות. נסה שוב.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAnswerSelect = (answerIndex: number) => {
@@ -125,9 +163,9 @@ const Index = () => {
     setIsTimerActive(true);
   };
 
-  const handleNewQuiz = () => {
-    startPracticeQuiz();
+  const handleNewQuiz = async () => {
     setShowResults(false);
+    await startPracticeQuiz();
   };
 
   const formatTime = (seconds: number) => {
@@ -150,13 +188,13 @@ const Index = () => {
         <div className="w-full max-w-4xl">
           <div className="text-center mb-8 animate-fade-in">
             <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
-              מערכת מבחנים
+              מבחן התיאוריה
             </h1>
             <p className="text-xl text-gray-600 mb-2">
-              מאגר של {TOTAL_QUESTIONS_IN_BANK.toLocaleString()} שאלות
+              מאגר של {totalQuestionsInBank.toLocaleString()} שאלות רישמיות
             </p>
             <p className="text-lg text-gray-500">
-              מבחני תרגול עם {PRACTICE_QUIZ_SIZE} שאלות רנדומליות
+              שאלות תיאוריה של משרד הרישוי
             </p>
           </div>
 
@@ -174,9 +212,17 @@ const Index = () => {
                 </div>
                 <Button 
                   onClick={startPracticeQuiz}
+                  disabled={isLoading}
                   className="w-full text-lg py-6 bg-blue-600 hover:bg-blue-700"
                 >
-                  התחל מבחן תרגול
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      טוען שאלות...
+                    </>
+                  ) : (
+                    'התחל מבחן תרגול'
+                  )}
                 </Button>
               </CardContent>
             </Card>
@@ -194,10 +240,18 @@ const Index = () => {
                 </div>
                 <Button 
                   onClick={startFullReview}
+                  disabled={isLoading}
                   variant="outline"
                   className="w-full text-lg py-6 border-green-600 text-green-700 hover:bg-green-50"
                 >
-                  סקירת שאלות
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      טוען שאלות...
+                    </>
+                  ) : (
+                    'סקירת שאלות'
+                  )}
                 </Button>
               </CardContent>
             </Card>
@@ -206,14 +260,25 @@ const Index = () => {
           <div className="mt-8 text-center">
             <Card className="bg-white/50 backdrop-blur-sm">
               <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-2">אודות המערכת</h3>
+                <h3 className="text-lg font-semibold mb-2">שאלות תיאוריה רשמיות</h3>
                 <p className="text-gray-600 text-sm">
-                  מערכת מבחנים מתקדמת עם מאגר שאלות גדול, בחירה רנדומלית חכמה, 
-                  ומערכת ציונים מפורטת כולל סקירת טעויות וזיהוי נושאים לשיפור.
+                  מערכת מבחנים עם שאלות רשמיות של משרד הרישוי, 
+                  הכוללת תמונות, תמרורים ושאלות מעודכנות לפי המאגר הרשמי.
                 </p>
               </CardContent>
             </Card>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-blue-600 mb-4" />
+          <p className="text-lg font-medium text-gray-700">טוען שאלות מהמאגר הרשמי...</p>
         </div>
       </div>
     );

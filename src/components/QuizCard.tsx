@@ -52,9 +52,13 @@ const QuizCard: React.FC<QuizCardProps> = ({
           {question.image && (
             <div className="mb-6 flex justify-center">
               <img 
-                src={`https://images.unsplash.com/${question.image}?w=400&h=300&fit=crop`}
+                src={question.image}
                 alt="תמונת שאלה"
-                className="rounded-lg shadow-md max-h-64 object-cover"
+                className="rounded-lg shadow-md max-h-64 object-contain border border-gray-200"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
               />
             </div>
           )}
