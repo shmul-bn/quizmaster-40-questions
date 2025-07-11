@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  base: '/quizmaster-40-questions/', // זה חשוב מאוד
+  base: '/quizmaster-40-questions/',
   plugins: [
     react(),
     mode === 'development' &&
